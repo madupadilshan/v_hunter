@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import LiveMap from '../components/LiveMap';
 import ThreatsPanel from '../components/ThreatsPanel';
 import { fetchSeveritySummary, fetchTopThreats } from '../services/threatService';
@@ -6,6 +6,21 @@ import { disconnectThreatSocket, subscribeToThreats } from '../services/socketSe
 import './pages.css';
 
 const MAX_THREAT_HISTORY = 120;
+const MAX_RECENT_DETECTIONS = 20;
+const THREAT_FLUSH_INTERVAL_MS = 300;
+
+function buildRecentDetection(threat) {
+  const sourceLabel = [threat.sourceCity, threat.sourceCountry, threat.sourceIp].filter(Boolean).join(' | ') || 'Unknown';
+  const targetLabel = [threat.targetCity, threat.targetCountry, threat.targetIp].filter(Boolean).join(' | ') || 'Unknown';
+
+  return {
+    id: `${threat.id || Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    source: sourceLabel,
+    target: targetLabel,
+    type: threat.threatType || 'Attack',
+    timestamp: threat.timestamp || new Date().toLocaleTimeString(),
+  };
+}
 
 /**
  * Home Page Component
@@ -18,27 +33,35 @@ function Home() {
   const [recentDetections, setRecentDetections] = useState([]);
   const [backendStatus, setBackendStatus] = useState('Connecting to backend...');
 
-  function addRecentDetection(threat) {
-    const detection = {
-      id: Date.now(),
-      source: threat.sourceCountry || 'Unknown',
-      target: threat.targetCountry || 'Unknown',
-      type: threat.threatType || 'Attack',
-      timestamp: new Date().toLocaleTimeString(),
-    };
-
-    setRecentDetections((prev) => [detection, ...prev.slice(0, 19)]);
-  }
+  const threatQueueRef = useRef([]);
 
   useEffect(() => {
     let mounted = true;
 
+    const flushThreatQueue = () => {
+      if (!mounted) return;
+
+      const queue = threatQueueRef.current;
+      if (!queue.length) return;
+
+      const nextThreats = queue.splice(0, queue.length);
+
+      setArcsData((prev) => {
+        const merged = [...prev, ...nextThreats];
+        return merged.slice(-MAX_THREAT_HISTORY);
+      });
+
+      setRecentDetections((prev) => {
+        const fromBatch = nextThreats.slice(-MAX_RECENT_DETECTIONS).reverse().map(buildRecentDetection);
+        return [...fromBatch, ...prev].slice(0, MAX_RECENT_DETECTIONS);
+      });
+    };
+
+    const flushTimer = setInterval(flushThreatQueue, THREAT_FLUSH_INTERVAL_MS);
+
     const loadInitialThreatData = async () => {
       try {
-        const [topThreatsData, summaryData] = await Promise.all([
-          fetchTopThreats(),
-          fetchSeveritySummary(),
-        ]);
+        const [topThreatsData, summaryData] = await Promise.all([fetchTopThreats(), fetchSeveritySummary()]);
 
         if (!mounted) return;
         setTopThreats(topThreatsData);
@@ -59,9 +82,8 @@ function Home() {
         setBackendStatus('Disconnected - retrying...');
       },
       onThreat: (threatData) => {
-        if (!mounted) return;
-        setArcsData((prev) => [...prev.slice(-(MAX_THREAT_HISTORY - 1)), threatData]);
-        addRecentDetection(threatData);
+        if (!mounted || !threatData) return;
+        threatQueueRef.current.push(threatData);
       },
       onError: () => {
         if (!mounted) return;
@@ -73,6 +95,9 @@ function Home() {
 
     return () => {
       mounted = false;
+      clearInterval(flushTimer);
+      flushThreatQueue();
+      threatQueueRef.current = [];
       unsubscribeThreats();
       disconnectThreatSocket();
     };
@@ -103,4 +128,3 @@ function Home() {
 }
 
 export default Home;
-

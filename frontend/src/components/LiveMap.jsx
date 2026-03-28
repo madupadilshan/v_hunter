@@ -1,40 +1,35 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Globe from 'globe.gl';
 
-const INITIAL_ARCS_DATA = [
-  {
-    startLat: 39.9042,
-    startLng: 116.4074,
-    endLat: 40.7128,
-    endLng: -74.006,
-    sourceCountry: 'China',
-    targetCountry: 'USA',
-    threatType: 'DDoS Attack',
-    color: 'rgba(255, 0, 85, 0.8)',
-  },
-  {
-    startLat: 55.7558,
-    startLng: 37.6173,
-    endLat: 51.5074,
-    endLng: -0.1278,
-    sourceCountry: 'Russia',
-    targetCountry: 'UK',
-    threatType: 'Malware',
-    color: 'rgba(255, 0, 85, 0.8)',
-  },
-  {
-    startLat: 34.0522,
-    startLng: -118.2437,
-    endLat: 35.6892,
-    endLng: 139.6917,
-    sourceCountry: 'Dark Web',
-    targetCountry: 'Japan',
-    threatType: 'Phishing',
-    color: 'rgba(255, 0, 85, 0.6)',
-  },
-];
-
 const MAX_VISIBLE_ARCS = 120;
+const DEFAULT_ARC_COLOR = 'rgba(255, 0, 85, 0.8)';
+
+function escapeHtml(value) {
+  return `${value ?? ''}`
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function buildLocationLabel(city, country, ip) {
+  return [city, country, ip].filter(Boolean).join(' | ') || 'Unknown';
+}
+
+function buildArcLabel(arc) {
+  const source = buildLocationLabel(arc.sourceCity, arc.sourceCountry, arc.sourceIp);
+  const target = buildLocationLabel(arc.targetCity, arc.targetCountry, arc.targetIp);
+
+  return `
+    <div style="padding:6px 8px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; line-height:1.4;">
+      <div style="font-size:12px; color:#9ca3af;">${escapeHtml(source)} -> ${escapeHtml(target)}</div>
+      <div style="font-weight:700; color:#f3f4f6;">${escapeHtml(arc.threatType || 'Attack')}</div>
+      <div style="font-size:11px; color:#67e8f9;">Severity: ${escapeHtml(arc.severity || 'Medium')}</div>
+      <div style="font-size:11px; color:#a1a1aa;">${escapeHtml(arc.timestamp || 'Live')}</div>
+    </div>
+  `;
+}
 
 /**
  * LiveMap Component
@@ -43,6 +38,8 @@ const MAX_VISIBLE_ARCS = 120;
 function LiveMap({ arcsData }) {
   const globeContainerRef = useRef(null);
   const globeRef = useRef(null);
+  const [hoveredThreat, setHoveredThreat] = useState(null);
+  const visibleArcs = useMemo(() => arcsData.slice(-MAX_VISIBLE_ARCS), [arcsData]);
 
   useEffect(() => {
     const container = globeContainerRef.current;
@@ -52,12 +49,17 @@ function LiveMap({ arcsData }) {
       const globe = Globe()(container);
 
       globe
-        .arcColor((arc) => arc.color || 'rgba(255, 0, 85, 0.8)')
-        .arcDashLength(() => 0.4)
+        .arcColor((arc) => arc.color || DEFAULT_ARC_COLOR)
+        .arcDashLength(() => 0.35)
         .arcDashGap(() => 0.2)
-        .arcDashAnimateTime(() => 1000)
-        .arcStroke(() => 2)
-        .arcsData(INITIAL_ARCS_DATA);
+        .arcDashAnimateTime(() => 1200)
+        .arcStroke(() => 1.8)
+        .arcAltitude((arc) => arc.arcAltitude ?? 0.2)
+        .arcLabel(buildArcLabel)
+        .onArcHover((arc) => {
+          setHoveredThreat(arc || null);
+        })
+        .arcsData([]);
 
       try {
         globe
@@ -114,6 +116,7 @@ function LiveMap({ arcsData }) {
       }
 
       globeRef.current = null;
+      setHoveredThreat(null);
 
       if (container) {
         container.innerHTML = '';
@@ -125,20 +128,37 @@ function LiveMap({ arcsData }) {
     const globe = globeRef.current;
     if (!globe) return;
 
-    const visibleArcs = arcsData.slice(-MAX_VISIBLE_ARCS);
-    globe.arcsData([...INITIAL_ARCS_DATA, ...visibleArcs]);
-  }, [arcsData]);
+    globe.arcsData(visibleArcs);
+  }, [visibleArcs]);
 
   return (
-    <div
-      ref={globeContainerRef}
-      className="globe-container"
-      style={{
-        width: '100%',
-        height: '100%',
-        background: 'radial-gradient(ellipse at center, #0f0f23 0%, #050511 100%)',
-      }}
-    />
+    <>
+      <div
+        ref={globeContainerRef}
+        className="globe-container"
+        style={{
+          width: '100%',
+          height: '100%',
+          background: 'radial-gradient(ellipse at center, #0f0f23 0%, #050511 100%)',
+        }}
+      />
+
+      {hoveredThreat && (
+        <div className="absolute left-6 bottom-6 z-20 pointer-events-none max-w-sm rounded-lg border border-cyan-500/30 bg-[#050511cc] px-3 py-2">
+          <p className="text-xs text-cyan-300 font-mono">
+            {[hoveredThreat.sourceCity, hoveredThreat.sourceCountry, hoveredThreat.sourceIp].filter(Boolean).join(' | ') ||
+              'Unknown'}{' '}
+            -&gt;{' '}
+            {[hoveredThreat.targetCity, hoveredThreat.targetCountry, hoveredThreat.targetIp].filter(Boolean).join(' | ') ||
+              'Unknown'}
+          </p>
+          <p className="text-xs text-gray-100 mt-1">{hoveredThreat.threatType || 'Attack'}</p>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Severity: {hoveredThreat.severity || 'Medium'} | {hoveredThreat.timestamp || 'Live'}
+          </p>
+        </div>
+      )}
+    </>
   );
 }
 

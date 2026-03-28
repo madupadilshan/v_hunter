@@ -19,6 +19,13 @@ function ensureSocket() {
   return socket;
 }
 
+function toThreatArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.threats)) return payload.threats;
+  if (Array.isArray(payload?.events)) return payload.events;
+  return [];
+}
+
 export function subscribeToThreats({ onThreat, onConnect, onDisconnect, onError }) {
   const client = ensureSocket();
 
@@ -39,8 +46,8 @@ export function subscribeToThreats({ onThreat, onConnect, onDisconnect, onError 
   };
 
   const handleThreatBatch = (payload) => {
-    if (!Array.isArray(payload)) return;
-    payload.forEach(handleThreat);
+    const threats = toThreatArray(payload);
+    threats.forEach(handleThreat);
   };
 
   const handleError = (error) => {
@@ -70,4 +77,3 @@ export function disconnectThreatSocket() {
     socket = null;
   }
 }
-
