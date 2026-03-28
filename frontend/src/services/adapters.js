@@ -18,6 +18,11 @@ function asNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function asInteger(value, fallback = 0) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function firstDefined(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null && `${value}`.trim() !== '') {
@@ -55,6 +60,23 @@ function getArcAltitude(severity) {
   return 0.18;
 }
 
+function asArrayFromCandidates(payload, candidateKeys = []) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+
+  for (const key of candidateKeys) {
+    if (Array.isArray(payload?.[key])) {
+      return payload[key];
+    }
+
+    if (Array.isArray(payload?.data?.[key])) {
+      return payload.data[key];
+    }
+  }
+
+  return [];
+}
+
 export function normalizeVulnerability(vulnerability, idx = 0) {
   return {
     id: vulnerability?.id ?? `v-${Date.now()}-${idx}`,
@@ -68,20 +90,18 @@ export function normalizeVulnerability(vulnerability, idx = 0) {
 export function normalizeVulnerabilities(payload) {
   if (!payload) return [];
 
-  if (Array.isArray(payload)) {
-    return payload.map(normalizeVulnerability);
+  const vulnerabilityList = asArrayFromCandidates(payload, ['vulnerabilities']);
+  if (vulnerabilityList.length > 0) {
+    return vulnerabilityList.map(normalizeVulnerability);
   }
 
-  if (Array.isArray(payload.vulnerabilities)) {
-    return payload.vulnerabilities.map(normalizeVulnerability);
-  }
-
-  if (Array.isArray(payload.threats)) {
-    return payload.threats.map((threat, idx) =>
+  const threatList = asArrayFromCandidates(payload, ['threats']);
+  if (threatList.length > 0) {
+    return threatList.map((threat, idx) =>
       normalizeVulnerability(
         {
           id: threat.id ?? `t-${idx}`,
-          name: threat.name || threat.threatType || 'Threat',
+          name: threat.name || threat.threatType || threat.threat_type || 'Threat',
           severity: threat.severity || payload.threat_level,
           description: threat.description || threat.type || 'Threat intelligence item.',
           cvss: threat.cvss ?? 0,
@@ -95,13 +115,12 @@ export function normalizeVulnerabilities(payload) {
 }
 
 export function normalizeTopThreats(payload) {
-  const candidates = payload?.threats || payload?.top_threats || [];
-  if (!Array.isArray(candidates)) return [];
+  const candidates = asArrayFromCandidates(payload, ['threats', 'top_threats', 'items']);
 
   return candidates.map((item) => ({
-    country: item.country || 'Unknown',
-    ips: `${item.ips ?? '0'}`,
-    percentage: Math.max(0, Math.min(100, asNumber(item.percentage, 0))),
+    country: firstDefined(item.country, item.sourceCountry, item.source_country, 'Unknown'),
+    ips: `${firstDefined(item.ips, item.ip_count, item.count, '0')}`,
+    percentage: Math.max(0, Math.min(100, asNumber(firstDefined(item.percentage, item.percent, 0), 0))),
   }));
 }
 
@@ -138,7 +157,7 @@ export function normalizeThreatEvent(event) {
 
   const severity = normalizeSeverity(firstDefined(event.severity, event.level, event.threat_level, source.severity));
 
-  const normalized = {
+  return {
     id: firstDefined(event.id, event.threat_id, event.event_id, `${Date.now()}`),
     startLat,
     startLng,
@@ -158,8 +177,50 @@ export function normalizeThreatEvent(event) {
     timestamp: firstDefined(normalizeTimestamp(event.timestamp), normalizeTimestamp(event.created_at), 'Live'),
     arcAltitude: getArcAltitude(severity),
   };
+}
 
-  return normalized;
+export function normalizeReport(item, idx = 0) {
+  const vulnerabilitiesValue = firstDefined(
+    item?.vulnerabilities_count,
+    item?.vulnerabilityCount,
+    item?.vulnerabilities,
+    item?.findings_count,
+    item?.findings,
+    0
+  );
+
+  const vulnerabilityCount = Array.isArray(vulnerabilitiesValue)
+    ? vulnerabilitiesValue.length
+    : asInteger(vulnerabilitiesValue, 0);
+
+  const exportedFormats = firstDefined(item?.exported, item?.formats, item?.exports, []);
+  const exported = Array.isArray(exportedFormats) ? exportedFormats.join(', ') : `${exportedFormats || ''}`;
+
+  return {
+    id: firstDefined(item?.id, item?.report_id, `r-${Date.now()}-${idx}`),
+    name: firstDefined(item?.name, item?.title, item?.report_name, 'Untitled Report'),
+    scannedAt: firstDefined(item?.scannedAt, item?.scanned_at, item?.createdAt, item?.created_at, null),
+    type: normalizeSeverity(firstDefined(item?.type, item?.severity, item?.threat_level, 'Medium')),
+    vulnerabilities: vulnerabilityCount,
+    exported,
+    raw: item,
+  };
+}
+
+export function normalizeReports(payload) {
+  const reports = asArrayFromCandidates(payload, ['reports', 'items', 'data']);
+  return reports.map(normalizeReport);
+}
+
+export function normalizeDarkWebStats(payload) {
+  return {
+    activeThreats: asInteger(firstDefined(payload?.activeThreats, payload?.active_threats, payload?.threats, 0), 0),
+    leakedCredentials: asInteger(
+      firstDefined(payload?.leakedCredentials, payload?.leaked_credentials, payload?.credentials, 0),
+      0
+    ),
+    forumsMonitored: asInteger(firstDefined(payload?.forumsMonitored, payload?.forums_monitored, payload?.forums, 0), 0),
+  };
 }
 
 export function buildSeverityCounts(vulnerabilities) {

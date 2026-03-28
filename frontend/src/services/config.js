@@ -6,9 +6,14 @@ function parseTimeout(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
 }
 
+function normalizeBaseUrl(value, fallback) {
+  const input = typeof value === 'string' ? value.trim() : '';
+  if (!input) return fallback;
+  return input.replace(/\/+$/, '');
+}
+
 export const backendConfig = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL,
-  socketUrl: import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL,
+  apiBaseUrl: normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL, DEFAULT_API_BASE_URL),
+  socketUrl: normalizeBaseUrl(import.meta.env.VITE_SOCKET_URL, import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL),
   timeoutMs: parseTimeout(import.meta.env.VITE_API_TIMEOUT_MS),
 };
-

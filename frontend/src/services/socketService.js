@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { backendConfig } from './config';
+import { SOCKET_EVENTS } from './contracts';
 import { normalizeThreatEvent } from './adapters';
 
 const SOCKET_OPTIONS = {
@@ -31,7 +32,7 @@ export function subscribeToThreats({ onThreat, onConnect, onDisconnect, onError 
 
   const handleConnect = () => {
     if (onConnect) onConnect();
-    client.emit('request_threat_data');
+    client.emit(SOCKET_EVENTS.requestThreatData);
   };
 
   const handleDisconnect = () => {
@@ -56,16 +57,16 @@ export function subscribeToThreats({ onThreat, onConnect, onDisconnect, onError 
 
   client.on('connect', handleConnect);
   client.on('disconnect', handleDisconnect);
-  client.on('new_threat', handleThreat);
-  client.on('threat_data', handleThreatBatch);
+  client.on(SOCKET_EVENTS.threat, handleThreat);
+  client.on(SOCKET_EVENTS.threatBatch, handleThreatBatch);
   client.on('connect_error', handleError);
   client.on('error', handleError);
 
   return () => {
     client.off('connect', handleConnect);
     client.off('disconnect', handleDisconnect);
-    client.off('new_threat', handleThreat);
-    client.off('threat_data', handleThreatBatch);
+    client.off(SOCKET_EVENTS.threat, handleThreat);
+    client.off(SOCKET_EVENTS.threatBatch, handleThreatBatch);
     client.off('connect_error', handleError);
     client.off('error', handleError);
   };

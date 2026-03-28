@@ -3,6 +3,8 @@ import { Upload, FileText, Zap } from 'lucide-react';
 import Uploader from '../components/Uploader';
 import ReportModal from '../components/ReportModal';
 import { scanTarget, uploadAndScanFiles } from '../services/scannerService';
+import { API_PATHS } from '../services/contracts';
+import { getErrorMessage } from '../services/errors';
 import './pages.css';
 
 const DEFAULT_MITIGATION = [
@@ -65,8 +67,7 @@ function Scanner() {
       });
       finishScanning();
     } catch (error) {
-      const message = error?.response?.data?.error || error?.message || 'File scan request failed.';
-      failScanning(message);
+      failScanning(getErrorMessage(error, 'File scan request failed.'));
     }
   };
 
@@ -89,8 +90,7 @@ function Scanner() {
       });
       finishScanning();
     } catch (error) {
-      const message = error?.response?.data?.error || error?.message || 'Network scan request failed.';
-      failScanning(message);
+      failScanning(getErrorMessage(error, 'Network scan request failed.'));
     }
   };
 
@@ -113,8 +113,8 @@ function Scanner() {
 Use the backend scan APIs with the same source input to reproduce this result:
 
 \`\`\`bash
-POST /api/upload (multipart/form-data)   # for file scans
-POST /api/scan   (application/json)      # for URL/IP scans
+POST ${API_PATHS.uploadScan} (multipart/form-data)   # for file scans
+POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
 \`\`\`
 `,
       mitigation: DEFAULT_MITIGATION,

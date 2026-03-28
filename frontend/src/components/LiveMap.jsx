@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Globe from 'globe.gl';
+import * as THREE from 'three';
 
 const MAX_VISIBLE_ARCS = 120;
+const MAX_VISIBLE_POINTS = 240;
+const MAX_RING_PULSES = 40;
 const DEFAULT_ARC_COLOR = 'rgba(255, 0, 85, 0.8)';
 
 function escapeHtml(value) {
@@ -31,15 +34,70 @@ function buildArcLabel(arc) {
   `;
 }
 
+function toSourcePoint(arc) {
+  return {
+    key: `s-${arc.startLat}-${arc.startLng}-${arc.sourceCountry || 'u'}`,
+    lat: arc.startLat,
+    lng: arc.startLng,
+    color: 'rgba(34, 211, 238, 0.9)',
+    altitude: 0.02,
+    radius: 0.14,
+    label: buildLocationLabel(arc.sourceCity, arc.sourceCountry, arc.sourceIp),
+  };
+}
+
+function toTargetPoint(arc) {
+  return {
+    key: `t-${arc.endLat}-${arc.endLng}-${arc.targetCountry || 'u'}`,
+    lat: arc.endLat,
+    lng: arc.endLng,
+    color: 'rgba(255, 0, 85, 0.92)',
+    altitude: 0.02,
+    radius: 0.16,
+    label: buildLocationLabel(arc.targetCity, arc.targetCountry, arc.targetIp),
+  };
+}
+
+function makeRingPulse(arc, idx) {
+  return {
+    id: `${arc.id || 'threat'}-${idx}`,
+    lat: arc.endLat,
+    lng: arc.endLng,
+    color: arc.color || DEFAULT_ARC_COLOR,
+    maxRadius: 4.5,
+    repeatPeriod: 900,
+  };
+}
+
 /**
  * LiveMap Component
- * 3D Interactive Globe with Attack Arc Visualization
+ * 3D Interactive Globe with cyber-themed visualized attack traffic
  */
 function LiveMap({ arcsData }) {
   const globeContainerRef = useRef(null);
   const globeRef = useRef(null);
   const [hoveredThreat, setHoveredThreat] = useState(null);
+
   const visibleArcs = useMemo(() => arcsData.slice(-MAX_VISIBLE_ARCS), [arcsData]);
+
+  const visiblePoints = useMemo(() => {
+    const map = new Map();
+
+    visibleArcs.forEach((arc) => {
+      const source = toSourcePoint(arc);
+      const target = toTargetPoint(arc);
+
+      if (!map.has(source.key)) map.set(source.key, source);
+      if (!map.has(target.key)) map.set(target.key, target);
+    });
+
+    return Array.from(map.values()).slice(-MAX_VISIBLE_POINTS);
+  }, [visibleArcs]);
+
+  const ringPulses = useMemo(
+    () => visibleArcs.slice(-MAX_RING_PULSES).map((arc, idx) => makeRingPulse(arc, idx)),
+    [visibleArcs]
+  );
 
   useEffect(() => {
     const container = globeContainerRef.current;
@@ -49,35 +107,65 @@ function LiveMap({ arcsData }) {
       const globe = Globe()(container);
 
       globe
+        .backgroundColor('rgba(0,0,0,0)')
+        .showAtmosphere(true)
+        .atmosphereColor('#22d3ee')
+        .atmosphereAltitude(0.2)
         .arcColor((arc) => arc.color || DEFAULT_ARC_COLOR)
-        .arcDashLength(() => 0.35)
+        .arcDashLength(() => 0.33)
         .arcDashGap(() => 0.2)
-        .arcDashAnimateTime(() => 1200)
+        .arcDashAnimateTime(() => 1300)
         .arcStroke(() => 1.8)
         .arcAltitude((arc) => arc.arcAltitude ?? 0.2)
         .arcLabel(buildArcLabel)
         .onArcHover((arc) => {
           setHoveredThreat(arc || null);
         })
+        .pointsData([])
+        .pointLat('lat')
+        .pointLng('lng')
+        .pointColor('color')
+        .pointAltitude('altitude')
+        .pointRadius('radius')
+        .pointLabel('label')
+        .pointsMerge(true)
+        .ringsData([])
+        .ringLat('lat')
+        .ringLng('lng')
+        .ringColor('color')
+        .ringMaxRadius('maxRadius')
+        .ringPropagationSpeed(() => 1.3)
+        .ringRepeatPeriod('repeatPeriod')
         .arcsData([]);
 
       try {
         globe
-          .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg')
+          .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
           .bumpImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png');
       } catch {
         // Globe can still render without textures.
       }
 
+      const globeMaterial = globe.globeMaterial();
+      if (globeMaterial instanceof THREE.MeshPhongMaterial) {
+        globeMaterial.color = new THREE.Color('#091426');
+        globeMaterial.emissive = new THREE.Color('#08203b');
+        globeMaterial.emissiveIntensity = 0.35;
+        globeMaterial.shininess = 8;
+      }
+
       const controls = typeof globe.controls === 'function' ? globe.controls() : null;
       if (controls) {
         controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.5;
+        controls.autoRotateSpeed = 0.42;
+        controls.enablePan = false;
+        controls.minDistance = 180;
+        controls.maxDistance = 420;
       }
 
       const camera = typeof globe.camera === 'function' ? globe.camera() : null;
       if (camera?.position) {
-        camera.position.z = 300;
+        camera.position.z = 280;
       }
 
       globeRef.current = globe;
@@ -129,7 +217,9 @@ function LiveMap({ arcsData }) {
     if (!globe) return;
 
     globe.arcsData(visibleArcs);
-  }, [visibleArcs]);
+    globe.pointsData(visiblePoints);
+    globe.ringsData(ringPulses);
+  }, [visibleArcs, visiblePoints, ringPulses]);
 
   return (
     <>
@@ -139,9 +229,15 @@ function LiveMap({ arcsData }) {
         style={{
           width: '100%',
           height: '100%',
-          background: 'radial-gradient(ellipse at center, #0f0f23 0%, #050511 100%)',
+          background:
+            'radial-gradient(ellipse at center, rgba(12, 23, 45, 0.95) 0%, rgba(5, 5, 17, 1) 58%, rgba(2, 2, 8, 1) 100%)',
         }}
       />
+
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <div className="absolute -top-24 left-[-120px] h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute -bottom-28 right-[-90px] h-72 w-72 rounded-full bg-rose-500/10 blur-3xl" />
+      </div>
 
       {hoveredThreat && (
         <div className="absolute left-6 bottom-6 z-20 pointer-events-none max-w-sm rounded-lg border border-cyan-500/30 bg-[#050511cc] px-3 py-2">

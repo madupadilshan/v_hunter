@@ -3,6 +3,7 @@ import LiveMap from '../components/LiveMap';
 import ThreatsPanel from '../components/ThreatsPanel';
 import { fetchSeveritySummary, fetchTopThreats } from '../services/threatService';
 import { disconnectThreatSocket, subscribeToThreats } from '../services/socketService';
+import { getErrorMessage } from '../services/errors';
 import './pages.css';
 
 const MAX_THREAT_HISTORY = 120;
@@ -66,9 +67,9 @@ function Home() {
         if (!mounted) return;
         setTopThreats(topThreatsData);
         setVulnerabilities(summaryData);
-      } catch {
+      } catch (error) {
         if (!mounted) return;
-        setBackendStatus('Waiting for backend data...');
+        setBackendStatus(getErrorMessage(error, 'Waiting for backend data...'));
       }
     };
 
@@ -85,9 +86,9 @@ function Home() {
         if (!mounted || !threatData) return;
         threatQueueRef.current.push(threatData);
       },
-      onError: () => {
+      onError: (error) => {
         if (!mounted) return;
-        setBackendStatus('Backend unavailable - retrying...');
+        setBackendStatus(getErrorMessage(error, 'Backend unavailable - retrying...'));
       },
     });
 

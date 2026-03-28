@@ -1,15 +1,45 @@
-import React from 'react';
-import { AlertCircle, TrendingUp, Globe } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Globe } from 'lucide-react';
+import { fetchDarkWebStats } from '../services/darkWebService';
 import './pages.css';
+
+function formatCompact(value) {
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value || 0);
+}
 
 /**
  * DarkWeb Page Component
  * Dark web intelligence monitoring and tracking
  */
 function DarkWeb() {
+  const [stats, setStats] = useState({
+    activeThreats: 0,
+    leakedCredentials: 0,
+    forumsMonitored: 0,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadStats = async () => {
+      try {
+        const data = await fetchDarkWebStats();
+        if (!mounted) return;
+        setStats(data);
+      } catch {
+        if (!mounted) return;
+      }
+    };
+
+    loadStats();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <div className="w-full min-h-screen bg-[#050511] relative overflow-hidden pt-20 pb-10">
-      {/* Background Grid Pattern */}
       <div className="absolute inset-0 opacity-5">
         <svg width="100%" height="100%">
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -19,10 +49,7 @@ function DarkWeb() {
         </svg>
       </div>
 
-      {/* Content Container */}
       <div className="relative z-10 max-w-7xl mx-auto px-6">
-        
-        {/* Page Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-2">
             <span className="text-gray-100">DARK WEB</span>
@@ -31,12 +58,11 @@ function DarkWeb() {
           <p className="text-gray-400 text-sm">Monitor underground forums, markets, and threat intelligence feeds</p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-6 mb-8">
           {[
-            { label: 'Active Threats', value: '847', color: 'text-red-400' },
-            { label: 'Leaked Credentials', value: '12.5K', color: 'text-orange-400' },
-            { label: 'Forums Monitored', value: '42', color: 'text-purple-400' },
+            { label: 'Active Threats', value: formatCompact(stats.activeThreats), color: 'text-red-400' },
+            { label: 'Leaked Credentials', value: formatCompact(stats.leakedCredentials), color: 'text-orange-400' },
+            { label: 'Forums Monitored', value: formatCompact(stats.forumsMonitored), color: 'text-purple-400' },
           ].map((stat, i) => (
             <div key={i} className="glass-panel-lg p-6 text-center">
               <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -45,14 +71,14 @@ function DarkWeb() {
           ))}
         </div>
 
-        {/* Coming Soon Message */}
         <div className="glass-panel-lg p-12 text-center">
           <div className="flex justify-center mb-4">
             <Globe className="w-16 h-16 text-purple-500 opacity-50" />
           </div>
           <h2 className="text-2xl font-bold text-purple-400 mb-4">Coming Soon</h2>
           <p className="text-gray-400 max-w-md mx-auto mb-6">
-            Advanced dark web monitoring capabilities, including marketplace tracking, credential leak detection, and threat actor activity monitoring.
+            Advanced dark web monitoring capabilities, including marketplace tracking, credential leak detection, and
+            threat actor activity monitoring.
           </p>
           <div className="flex justify-center gap-4">
             <button className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors">

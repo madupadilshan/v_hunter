@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Download, Trash2, Calendar } from 'lucide-react';
+import { fetchReports } from '../services/reportService';
+import { getErrorMessage } from '../services/errors';
 import './pages.css';
 
 /**
@@ -7,22 +9,54 @@ import './pages.css';
  * Archive and retrieval of generated security reports
  */
 function Reports() {
-  // Backend-driven dataset (empty until API integration is provided)
-  const reports = [];
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const severityCounts = reports.reduce(
-    (acc, report) => {
-      if (acc[report.type] !== undefined) {
-        acc[report.type] += 1;
+  useEffect(() => {
+    let mounted = true;
+
+    const loadReports = async () => {
+      setLoading(true);
+      setErrorMessage('');
+
+      try {
+        const data = await fetchReports();
+        if (!mounted) return;
+        setReports(data);
+      } catch (error) {
+        if (!mounted) return;
+        setErrorMessage(getErrorMessage(error, 'Unable to load reports from backend.'));
+        setReports([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      return acc;
-    },
-    {
-      Critical: 0,
-      High: 0,
-      Medium: 0,
-      Low: 0,
-    }
+    };
+
+    loadReports();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const severityCounts = useMemo(
+    () =>
+      reports.reduce(
+        (acc, report) => {
+          if (acc[report.type] !== undefined) {
+            acc[report.type] += 1;
+          }
+          return acc;
+        },
+        {
+          Critical: 0,
+          High: 0,
+          Medium: 0,
+          Low: 0,
+        }
+      ),
+    [reports]
   );
 
   const getTrustBadgeColor = (type) => {
@@ -37,6 +71,10 @@ function Reports() {
         return 'bg-green-500/20 text-green-400 border border-green-500/50';
     }
   };
+
+  const emptyStateMessage = loading
+    ? 'Loading reports from backend...'
+    : errorMessage || 'No reports available yet. Connect backend report data to populate this table.';
 
   return (
     <div className="w-full min-h-screen bg-[#050511] relative overflow-x-hidden pt-20 pb-10">
@@ -81,7 +119,7 @@ function Reports() {
                 {reports.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">
-                      No reports available yet. Connect backend report data to populate this table.
+                      {emptyStateMessage}
                     </td>
                   </tr>
                 ) : (
@@ -109,14 +147,16 @@ function Reports() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          {report.exported?.split(', ').map((format, i) => (
-                            <span
-                              key={i}
-                              className="px-2 py-1 bg-gray-900/50 border border-gray-700/50 text-xs text-gray-300 rounded"
-                            >
-                              {format}
-                            </span>
-                          ))}
+                          {report.exported
+                            ? report.exported.split(/,\s*/).map((format, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2 py-1 bg-gray-900/50 border border-gray-700/50 text-xs text-gray-300 rounded"
+                                >
+                                  {format}
+                                </span>
+                              ))
+                            : '-'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -168,4 +208,3 @@ function Reports() {
 }
 
 export default Reports;
-
