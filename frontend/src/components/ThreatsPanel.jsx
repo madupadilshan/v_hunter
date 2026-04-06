@@ -5,7 +5,9 @@ import { AlertTriangle, TrendingUp, Clock } from 'lucide-react';
  * ThreatsPanel Component
  * Right panel displaying live threat intelligence dashboard
  */
-function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewReport, showScanButton = true }) {
+function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewReport, showScanButton = true, theme = 'dark' }) {
+  const isDark = theme === 'dark';
+
   const calculateSeverityCounts = () => {
     const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
     vulnerabilities.forEach((vulnerability) => {
@@ -40,22 +42,22 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
   };
 
   return (
-    <div className="absolute right-6 top-32 z-20 w-96 max-h-[calc(100vh-8rem)] overflow-y-auto panel-overlay space-y-6">
-      <div className="glass-panel p-6 rounded-lg space-y-4">
-        <h3 className="text-sm font-bold text-gray-100 flex items-center gap-2">
+    <div className="absolute z-20 left-3 right-3 top-[27rem] sm:left-auto sm:right-4 sm:top-32 sm:w-[22rem] lg:right-6 lg:w-96 max-h-[calc(100vh-8rem)] overflow-y-auto panel-overlay space-y-4 sm:space-y-6">
+      <div className="glass-panel glass-panel-transparent p-6 rounded-lg space-y-4">
+        <h3 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>
           <TrendingUp size={16} className="text-cyan-400" />
           Top Attackers
         </h3>
 
         <div className="space-y-3">
           {topThreats.length === 0 ? (
-            <p className="text-xs text-gray-500">No threat data available yet.</p>
+            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>No threat data available yet.</p>
           ) : (
             topThreats.map((threat, idx) => (
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-gray-300 font-mono">{threat.country}</span>
-                  <span className="text-cyan-400 text-xs">{threat.ips}</span>
+                  <span className={`font-mono ${isDark ? 'text-gray-300' : 'text-slate-700'}`}>{threat.country}</span>
+                  <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>{threat.ips}</span>
                 </div>
                 <div className="progress-bar">
                   <div className="progress-bar-fill" style={{ width: `${threat.percentage}%` }} />
@@ -66,14 +68,14 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
         </div>
       </div>
 
-      <div className="glass-panel p-6 rounded-lg space-y-4">
-        <h3 className="text-sm font-bold text-gray-100 flex items-center gap-2">
+      <div className="glass-panel glass-panel-transparent p-6 rounded-lg space-y-4">
+        <h3 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>
           <AlertTriangle size={16} className="text-red-500" />
           Vulnerability Summary
         </h3>
 
         {vulnerabilities.length === 0 ? (
-          <p className="text-xs text-gray-500">No vulnerabilities detected yet.</p>
+          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>No vulnerabilities detected yet.</p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {['Critical', 'High', 'Medium', 'Low'].map((severity) => (
@@ -95,15 +97,15 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
         )}
       </div>
 
-      <div className="glass-panel p-6 rounded-lg space-y-4">
-        <h3 className="text-sm font-bold text-gray-100 flex items-center gap-2">
+      <div className="glass-panel glass-panel-transparent p-6 rounded-lg space-y-4">
+        <h3 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>
           <Clock size={16} className="text-orange-400" />
           Recent Detections
         </h3>
 
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {recentDetections.length === 0 ? (
-            <p className="text-xs text-gray-500">No detections yet.</p>
+            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>No detections yet.</p>
           ) : (
             recentDetections.map((detection) => (
               <div key={detection.id} className="threat-item">
@@ -112,9 +114,11 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
                     <div className="text-xs font-mono text-red-400">
                       {detection.source} -&gt; {detection.target}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{detection.type}</div>
+                    <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>{detection.type}</div>
                   </div>
-                  <div className="text-xs text-gray-500 whitespace-nowrap ml-2">{detection.timestamp}</div>
+                  <div className={`text-xs whitespace-nowrap ml-2 ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>
+                    {detection.timestamp}
+                  </div>
                 </div>
               </div>
             ))
@@ -124,7 +128,7 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
 
       {vulnerabilities.length > 0 && (
         <div className="glass-panel p-6 rounded-lg space-y-4">
-          <h3 className="text-sm font-bold text-gray-100">Found Vulnerabilities</h3>
+          <h3 className={`text-sm font-bold ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>Found Vulnerabilities</h3>
 
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {vulnerabilities.map((vulnerability) => (
@@ -134,8 +138,8 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
               >
                 <div className="flex justify-between items-start gap-2">
                   <div>
-                    <h4 className="text-xs font-bold text-gray-100">{vulnerability.name}</h4>
-                    <p className="text-xs text-gray-400 mt-1">{vulnerability.description}</p>
+                    <h4 className={`text-xs font-bold ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>{vulnerability.name}</h4>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>{vulnerability.description}</p>
                   </div>
                   <span
                     className={`text-xs font-bold px-2 py-1 rounded whitespace-nowrap ${getSeverityColor(vulnerability.severity)}`}
@@ -143,7 +147,7 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
                     {vulnerability.severity}
                   </span>
                 </div>
-                <div className="text-xs text-cyan-400 mt-2">CVSS: {vulnerability.cvss}</div>
+                <div className={`text-xs mt-2 ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>CVSS: {vulnerability.cvss}</div>
               </div>
             ))}
           </div>
@@ -154,4 +158,3 @@ function ThreatsPanel({ vulnerabilities, topThreats, recentDetections, onViewRep
 }
 
 export default ThreatsPanel;
-

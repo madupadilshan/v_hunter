@@ -5,7 +5,8 @@ import { X, Download, Copy } from 'lucide-react';
  * ReportModal Component
             AI-Generated Vulnerability Reports with PoC and mitigation
  */
-function ReportModal({ data, onClose }) {
+function ReportModal({ data, onClose, theme = 'dark' }) {
+  const isDark = theme === 'dark';
   const [copied, setCopied] = React.useState(false);
 
   if (!data) return null;
@@ -56,7 +57,7 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 backdrop-blur-sm ${isDark ? 'bg-black/60' : 'bg-slate-900/30'}`}
         onClick={onClose}
       />
 
@@ -65,17 +66,19 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-700/50 rounded-lg transition-colors"
+          className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
+            isDark ? 'hover:bg-gray-700/50' : 'hover:bg-slate-200/80'
+          }`}
         >
-          <X size={20} className="text-gray-400" />
+          <X size={20} className={isDark ? 'text-gray-400' : 'text-slate-600'} />
         </button>
 
         {/* Header */}
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-gray-100">
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>
             AI-Generated Vulnerability Report
           </h2>
-          <p className="text-sm text-gray-400">
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>
             Scan completed on {new Date().toLocaleString()}
           </p>
         </div>
@@ -83,7 +86,7 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
         {/* Summary */}
         <div className="glass-panel p-4 rounded-lg space-y-2">
           <h3 className="text-sm font-bold text-cyan-400">Executive Summary</h3>
-          <p className="text-sm text-gray-300">{data.summary}</p>
+          <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-slate-700'}`}>{data.summary}</p>
         </div>
 
         {/* Vulnerabilities */}
@@ -96,7 +99,7 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
             {data.vulnerabilities.map((vuln) => (
               <div key={vuln.id} className="glass-panel p-4 rounded-lg space-y-2">
                 <div className="flex justify-between items-start">
-                  <h4 className="font-bold text-gray-100">{vuln.name}</h4>
+                  <h4 className={`font-bold ${isDark ? 'text-gray-100' : 'text-slate-900'}`}>{vuln.name}</h4>
                   <span
                     className={`text-xs px-2 py-1 rounded font-bold ${
                       vuln.severity === 'Critical'
@@ -109,7 +112,7 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
                     {vuln.severity}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400">{vuln.description}</p>
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>{vuln.description}</p>
                 <div className="text-xs text-cyan-300">CVSS: {vuln.cvss}</div>
               </div>
             ))}
@@ -121,7 +124,11 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
           <h3 className="text-sm font-bold text-orange-400">Proof of Concept (PoC)</h3>
 
           <div className="glass-panel p-4 rounded-lg space-y-3">
-            <pre className="text-xs text-gray-300 overflow-x-auto max-h-64 overflow-y-auto font-mono bg-gray-800/50 p-3 rounded whitespace-pre-wrap break-words">
+            <pre
+              className={`text-xs overflow-x-auto max-h-64 overflow-y-auto font-mono p-3 rounded whitespace-pre-wrap break-words ${
+                isDark ? 'text-gray-300 bg-gray-800/50' : 'text-slate-700 bg-slate-200/70'
+              }`}
+            >
               {data.poc}
             </pre>
 
@@ -145,14 +152,14 @@ ${data.mitigation.map((m, i) => `${i + 1}. ${m}`).join('\n')}
             {data.mitigation.map((strategy, idx) => (
               <div key={idx} className="glass-panel p-3 rounded-lg flex gap-3">
                 <span className="text-cyan-400 font-bold flex-shrink-0">{idx + 1}.</span>
-                <p className="text-sm text-gray-300">{strategy}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-slate-700'}`}>{strategy}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 pt-4 border-t border-gray-700/50">
+        <div className={`flex gap-3 pt-4 border-t ${isDark ? 'border-gray-700/50' : 'border-slate-300'}`}>
           <button
             onClick={handleExport}
             className="btn-primary flex items-center gap-2 flex-1 justify-center"

@@ -19,7 +19,8 @@ const DEFAULT_MITIGATION = [
  * Scanner Page Component
  * Vulnerability scanning with file upload and URL analysis
  */
-function Scanner() {
+function Scanner({ theme = 'dark' }) {
+  const isDark = theme === 'dark';
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState({ stage: '', percentage: 0 });
   const [vulnerabilities, setVulnerabilities] = useState([]);
@@ -125,7 +126,11 @@ POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#050511] relative overflow-hidden pt-20 pb-10">
+    <div
+      className={`w-full min-h-screen relative overflow-hidden pt-32 pb-10 ${
+        isDark ? 'bg-[#050511]' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50'
+      }`}
+    >
       <div className="absolute inset-0 opacity-5">
         <svg width="100%" height="100%">
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -138,20 +143,20 @@ POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">
-            <span className="text-gray-100">VULNERABILITY</span>
+            <span className={isDark ? 'text-gray-100' : 'text-slate-900'}>VULNERABILITY</span>
             <span className="text-red-500 drop-shadow-lg"> SCANNER</span>
           </h1>
-          <p className="text-gray-400 text-sm">Frontend wired for backend API integration</p>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>Frontend wired for backend API integration</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
             <div className="glass-panel-lg">
               <div className="flex items-center gap-2 mb-4">
                 <Upload className="w-5 h-5 text-cyan-400" />
                 <h2 className="text-lg font-bold text-cyan-400">File Scanner</h2>
               </div>
-              <Uploader onFileUpload={handleFileUpload} disabled={scanning} />
+              <Uploader onFileUpload={handleFileUpload} disabled={scanning} theme={theme} />
             </div>
 
             <div className="glass-panel-lg">
@@ -167,7 +172,11 @@ POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
                   onKeyDown={(e) => e.key === 'Enter' && handleURLScan()}
                   placeholder="Enter URL, IP address, or domain..."
                   disabled={scanning}
-                  className="input-glow w-full px-4 py-3 bg-gray-900/50 border border-gray-700/50 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                  className={`input-glow w-full px-4 py-3 rounded-lg focus:outline-none disabled:opacity-50 ${
+                    isDark
+                      ? 'bg-gray-900/50 border border-gray-700/50 text-gray-100 placeholder-gray-500 focus:border-purple-500'
+                      : 'bg-white/90 border border-slate-300 text-slate-900 placeholder-slate-500 focus:border-purple-400'
+                  }`}
                 />
                 <button
                   onClick={handleURLScan}
@@ -223,7 +232,7 @@ POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-400">Ready for backend scan. Upload a file or scan a URL to begin.</p>
+                  <p className={isDark ? 'text-gray-400' : 'text-slate-600'}>Ready for backend scan. Upload a file or scan a URL to begin.</p>
                 </div>
               )}
             </div>
@@ -238,11 +247,15 @@ POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
                   {vulnerabilities.map((vuln) => (
                     <div
                       key={vuln.id}
-                      className="flex justify-between items-center p-2 bg-gray-900/30 rounded border border-gray-700/30 hover:border-gray-600/50 transition-all"
+                      className={`flex justify-between items-center p-2 rounded border transition-all ${
+                        isDark
+                          ? 'bg-gray-900/30 border-gray-700/30 hover:border-gray-600/50'
+                          : 'bg-white/80 border-slate-300 hover:border-slate-400'
+                      }`}
                     >
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-200">{vuln.name}</p>
-                        <p className="text-xs text-gray-400">CVSS: {Number(vuln.cvss).toFixed(1)}</p>
+                        <p className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-slate-900'}`}>{vuln.name}</p>
+                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-slate-600'}`}>CVSS: {Number(vuln.cvss).toFixed(1)}</p>
                       </div>
                       <span
                         className={`px-2 py-1 rounded text-xs font-bold ${
@@ -264,7 +277,7 @@ POST ${API_PATHS.networkScan} (application/json)     # for URL/IP scans
         </div>
       </div>
 
-      {showReportModal && <ReportModal data={reportData} onClose={() => setShowReportModal(false)} />}
+      {showReportModal && <ReportModal data={reportData} onClose={() => setShowReportModal(false)} theme={theme} />}
     </div>
   );
 }
